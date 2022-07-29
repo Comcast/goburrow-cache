@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pt-nguyen/cache/synthetic"
+	"github.com/Comcast/goburrow-cache/synthetic"
 )
 
 const (

@@ -1,3 +1,3 @@
-module github.com/pt-nguyen/cache
+module github.com/Comcast/goburrow-cache
 
 go 1.17
