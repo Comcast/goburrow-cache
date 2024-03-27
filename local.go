@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -188,11 +189,25 @@ func (c *localCache) Get(k Key) (Value, error) {
 	return en.getValue(), nil
 }
 
+func (c *localCache) GetActive(k Key) (Value, error) {
+	obj, err := c.Get(k)
+	if err != nil {
+		return nil, err
+	}
+	en := c.cache.get(k, sum(k))
+	if ! en.getInvalidated() {
+		return obj, nil
+	}
+	return nil, errors.New ("entry invalidated")
+}
+
 // GetAllKeys returns all keys.
 func (c *localCache) GetAllKeys() []interface{} {
 	keys := make([]interface{}, 0, c.cache.len())
 	c.cache.walk(func(en *entry) {
-		keys = append(keys, en.key)
+		if ! en.getInvalidated() {
+			keys = append(keys, en.key)
+		}
 	})
 	return keys
 }
@@ -201,7 +216,9 @@ func (c *localCache) GetAllKeys() []interface{} {
 func (c *localCache) GetAllValues() []interface{} {
 	values := make([]interface{}, 0, c.cache.len())
 	c.cache.walk(func(en *entry) {
-		values = append(values, en.getValue())
+		if ! en.getInvalidated() {
+			values = append(values, en.getValue())
+		}
 	})
 	return values
 }
@@ -210,7 +227,9 @@ func (c *localCache) GetAllValues() []interface{} {
 func (c *localCache) GetAll() map[interface{}]interface{} {
 	var values = make(map[interface{}]interface{}, c.cache.len())
 	c.cache.walk(func(en *entry) {
-		values[en.key] = en.getValue()
+		if ! en.getInvalidated() {
+			values[en.key] = en.getValue()
+		}
 	})
 	return values
 }
