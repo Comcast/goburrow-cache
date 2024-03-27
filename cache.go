@@ -59,6 +59,8 @@ type LoadingCache interface {
 	// to load value if it is not present.
 	Get(Key) (Value, error)
 
+	GetActive(Key) (Value, error)
+
 	// Refresh loads new value for Key. If the Key already existed, the previous value
 	// will continue to be returned by Get while the new value is loading.
 	// If Key does not exist, this function will block until the value is loaded.
