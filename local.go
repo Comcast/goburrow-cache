@@ -195,7 +195,7 @@ func (c *localCache) GetActive(k Key) (Value, error) {
 		return nil, err
 	}
 	en := c.cache.get(k, sum(k))
-	if ! en.getInvalidated() {
+	if en != nil && ! en.getInvalidated() {
 		return obj, nil
 	}
 	return nil, errors.New ("entry invalidated")
@@ -205,7 +205,7 @@ func (c *localCache) GetActive(k Key) (Value, error) {
 func (c *localCache) GetAllKeys() []interface{} {
 	keys := make([]interface{}, 0, c.cache.len())
 	c.cache.walk(func(en *entry) {
-		if ! en.getInvalidated() {
+		if en != nil && ! en.getInvalidated() {
 			keys = append(keys, en.key)
 		}
 	})
@@ -216,7 +216,7 @@ func (c *localCache) GetAllKeys() []interface{} {
 func (c *localCache) GetAllValues() []interface{} {
 	values := make([]interface{}, 0, c.cache.len())
 	c.cache.walk(func(en *entry) {
-		if ! en.getInvalidated() {
+		if en != nil && ! en.getInvalidated() {
 			values = append(values, en.getValue())
 		}
 	})
@@ -227,7 +227,7 @@ func (c *localCache) GetAllValues() []interface{} {
 func (c *localCache) GetAll() map[interface{}]interface{} {
 	var values = make(map[interface{}]interface{}, c.cache.len())
 	c.cache.walk(func(en *entry) {
-		if ! en.getInvalidated() {
+		if en != nil && ! en.getInvalidated() {
 			values[en.key] = en.getValue()
 		}
 	})
