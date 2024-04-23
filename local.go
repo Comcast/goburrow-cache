@@ -195,7 +195,7 @@ func (c *localCache) GetActive(k Key) (Value, error) {
 		return nil, err
 	}
 	en := c.cache.get(k, sum(k))
-	if ! en.getInvalidated() {
+	if en != nil && ! en.getInvalidated() {
 		return obj, nil
 	}
 	return nil, errors.New ("entry invalidated")
