@@ -195,17 +195,17 @@ func (c *localCache) GetActive(k Key) (Value, error) {
 		return nil, err
 	}
 	en := c.cache.get(k, sum(k))
-	if en != nil && ! en.getInvalidated() {
+	if en != nil && !en.getInvalidated() {
 		return obj, nil
 	}
-	return nil, errors.New ("entry invalidated")
+	return nil, errors.New("entry invalidated")
 }
 
 // GetAllKeys returns all keys.
 func (c *localCache) GetAllKeys() []interface{} {
 	keys := make([]interface{}, 0, c.cache.len())
 	c.cache.walk(func(en *entry) {
-		if ! en.getInvalidated() {
+		if !en.getInvalidated() {
 			keys = append(keys, en.key)
 		}
 	})
@@ -216,7 +216,7 @@ func (c *localCache) GetAllKeys() []interface{} {
 func (c *localCache) GetAllValues() []interface{} {
 	values := make([]interface{}, 0, c.cache.len())
 	c.cache.walk(func(en *entry) {
-		if ! en.getInvalidated() {
+		if !en.getInvalidated() {
 			values = append(values, en.getValue())
 		}
 	})
@@ -227,7 +227,7 @@ func (c *localCache) GetAllValues() []interface{} {
 func (c *localCache) GetAll() map[interface{}]interface{} {
 	var values = make(map[interface{}]interface{}, c.cache.len())
 	c.cache.walk(func(en *entry) {
-		if ! en.getInvalidated() {
+		if !en.getInvalidated() {
 			values[en.key] = en.getValue()
 		}
 	})
@@ -250,6 +250,24 @@ func (c *localCache) Refresh(k Key) {
 		c.load(k)
 	} else {
 		c.refreshAsync(en)
+	}
+}
+
+// RefreshIfModifiedAfter asynchronously reloads value for Key if the provided timestamp
+// indicates the data was modified after the entry was last loaded. If the entry doesn't exist,
+// it will synchronously load and block until the value is loaded.
+func (c *localCache) RefreshIfModifiedAfter(k Key, modifiedTime time.Time) {
+	if c.loader == nil {
+		return
+	}
+	en := c.cache.get(k, sum(k))
+	if en == nil {
+		c.load(k)
+	} else {
+		// Only refresh if the data was modified after the entry was last loaded
+		if modifiedTime.UnixNano() > en.getWriteTime() {
+			c.refreshAsync(en)
+		}
 	}
 }
 

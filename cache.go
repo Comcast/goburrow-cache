@@ -2,6 +2,8 @@
 // including support for LRU, Segmented LRU and TinyLFU.
 package cache
 
+import "time"
+
 // Key is any value which is comparable.
 // See http://golang.org/ref/spec#Comparison_operators for details.
 type Key interface{}
@@ -65,6 +67,11 @@ type LoadingCache interface {
 	// will continue to be returned by Get while the new value is loading.
 	// If Key does not exist, this function will block until the value is loaded.
 	Refresh(Key)
+
+	// RefreshIfModifiedAfter asynchronously reloads value for Key if the provided timestamp
+	// indicates the data was modified after the entry was last loaded. If the entry doesn't exist,
+	// it will synchronously load and block until the value is loaded.
+	RefreshIfModifiedAfter(Key, time.Time)
 }
 
 // LoaderFunc retrieves the value corresponding to given Key.
