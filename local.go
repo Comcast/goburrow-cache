@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -187,18 +186,6 @@ func (c *localCache) Get(k Key) (Value, error) {
 		c.stats.RecordHits(1)
 	}
 	return en.getValue(), nil
-}
-
-func (c *localCache) GetActive(k Key) (Value, error) {
-	obj, err := c.Get(k)
-	if err != nil {
-		return nil, err
-	}
-	en := c.cache.get(k, sum(k))
-	if en != nil && !en.getInvalidated() {
-		return obj, nil
-	}
-	return nil, errors.New("entry invalidated")
 }
 
 // GetAllKeys returns all keys.
