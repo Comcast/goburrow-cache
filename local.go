@@ -243,7 +243,7 @@ func (c *localCache) Refresh(k Key) {
 // RefreshIfModifiedAfter asynchronously reloads value for Key if the provided timestamp
 // indicates the data was modified after the entry was last loaded. If the entry doesn't exist,
 // it will synchronously load and block until the value is loaded.
-func (c *localCache) RefreshIfModifiedAfter(k Key, modifiedTime time.Time) {
+func (c *localCache) RefreshIfModifiedAfter(k Key, modifiedTime int64) {
 	if c.loader == nil {
 		return
 	}
@@ -252,7 +252,7 @@ func (c *localCache) RefreshIfModifiedAfter(k Key, modifiedTime time.Time) {
 		c.load(k)
 	} else {
 		// Only refresh if the data was modified after the entry was last loaded
-		if modifiedTime.UnixNano() > en.getWriteTime() {
+		if modifiedTime > en.getWriteTime() {
 			c.refreshAsync(en)
 		}
 	}

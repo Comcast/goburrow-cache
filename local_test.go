@@ -415,7 +415,7 @@ func TestRefreshIfModifiedAfter(t *testing.T) {
 
 	// 1. Entry does not exist, should load synchronously.
 	wg.Add(1)
-	c.RefreshIfModifiedAfter(key, mockTime.now())
+	c.RefreshIfModifiedAfter(key, mockTime.now().UnixNano())
 	wg.Wait()
 
 	if loadCount != 1 {
@@ -423,7 +423,7 @@ func TestRefreshIfModifiedAfter(t *testing.T) {
 	}
 
 	// 2. Entry exists, but modifiedTime is not after entry's write time. Should not refresh.
-	c.RefreshIfModifiedAfter(key, mockTime.now().Add(-1*time.Millisecond)) // modified time is before write time
+	c.RefreshIfModifiedAfter(key, mockTime.now().Add(-1*time.Millisecond).UnixNano()) // modified time is before write time
 	// No wg.Add/Wait as it should be synchronous and do nothing.
 	if loadCount != 1 {
 		t.Fatalf("expected loadCount to be 1 when not modified, got %d", loadCount)
@@ -431,7 +431,7 @@ func TestRefreshIfModifiedAfter(t *testing.T) {
 
 	// 3. Entry exists, and modifiedTime is after entry's write time. Should refresh.
 	wg.Add(1)
-	c.RefreshIfModifiedAfter(key, mockTime.now().Add(1*time.Millisecond)) // modified time is after write time
+	c.RefreshIfModifiedAfter(key, mockTime.now().Add(1*time.Millisecond).UnixNano()) // modified time is after write time
 	wg.Wait()
 	if loadCount != 2 {
 		t.Fatalf("expected loadCount to be 2 after refresh, got %d", loadCount)
@@ -448,14 +448,14 @@ func TestRefreshIfModifiedAfter(t *testing.T) {
 		t.Fatalf("unexpected get: %v %v", v, err)
 	}
 
-	c.RefreshIfModifiedAfter(key2, mockTime.now()) // modified time is the same as write time
+	c.RefreshIfModifiedAfter(key2, mockTime.now().UnixNano()) // modified time is the same as write time
 	// No wg.Add/Wait as it should be synchronous and do nothing.
 	if loadCount != 2 {
 		t.Fatalf("expected loadCount to be 2 when not modified, got %d", loadCount)
 	}
 
 	wg.Add(1)
-	c.RefreshIfModifiedAfter(key, mockTime.now().Add(1*time.Millisecond)) // modified time is after write time
+	c.RefreshIfModifiedAfter(key, mockTime.now().Add(1*time.Millisecond).UnixNano()) // modified time is after write time
 	wg.Wait()
 	if loadCount != 3 {
 		t.Fatalf("expected loadCount to be 3 after refresh, got %d", loadCount)
