@@ -3,8 +3,11 @@ package cache
 import (
 	"encoding/binary"
 	"hash/fnv"
+	"strings"
 	"testing"
 	"unsafe"
+
+	"github.com/zeebo/xxh3"
 )
 
 func sumFNV(data []byte) uint64 {
@@ -47,8 +50,8 @@ func TestSum(t *testing.T) {
 		{float32(2.5), sumFNVu32(0x40200000)},
 		{float64(2.5), sumFNVu64(0x4004000000000000)},
 		{uintptr(unsafe.Pointer(t)), sumFNVu64(uint64(uintptr(unsafe.Pointer(t))))},
-		{"", sumFNV(nil)},
-		{"string", sumFNV([]byte("string"))},
+		{"", xxh3.HashString("")},
+		{"string", xxh3.HashString("string")},
 		{t, sumFNVu64(uint64(uintptr(unsafe.Pointer(t))))},
 		{(*testing.T)(nil), sumFNVu64(0)},
 	}
@@ -71,11 +74,24 @@ func BenchmarkSumInt(b *testing.B) {
 	})
 }
 
+// benchStringKeys targets key lengths (16-128 chars), weighted
+// toward the 16-64 range where most keys are expected to fall.
+var benchStringKeys = func() []string {
+	lengths := []int{16, 24, 32, 48, 64, 64, 48, 32, 96, 128}
+	keys := make([]string, len(lengths))
+	for i, n := range lengths {
+		keys[i] = strings.Repeat("k", n)
+	}
+	return keys
+}()
+
 func BenchmarkSumString(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
+		i := 0
 		for pb.Next() {
-			sum("09130105060103210913010506010321091301050601032109130105060103210913010506010321")
+			sum(benchStringKeys[i%len(benchStringKeys)])
+			i++
 		}
 	})
 }

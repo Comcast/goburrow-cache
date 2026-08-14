@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -84,6 +86,34 @@ func benchmarkCache(b *testing.B, g synthetic.Generator) {
 			}
 		}
 	})
+}
+
+// BenchmarkLoadingCacheConcurrentMiss measures thundering herd: many goroutines
+// hitting the same uncached key simultaneously.
+func BenchmarkLoadingCacheConcurrentMiss(b *testing.B) {
+	const concurrency = 50
+	var loaderCalls int64
+	loader := func(k Key) (Value, error) {
+		atomic.AddInt64(&loaderCalls, 1)
+		time.Sleep(1 * time.Millisecond)
+		return k, nil
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c := NewLoadingCache(loader, WithMaximumSize(testMaxSize))
+		var wg sync.WaitGroup
+		wg.Add(concurrency)
+		for j := 0; j < concurrency; j++ {
+			go func() {
+				defer wg.Done()
+				c.Get("shared-key")
+			}()
+		}
+		wg.Wait()
+		c.Close()
+	}
+	b.ReportMetric(float64(loaderCalls)/float64(b.N), "loader-calls/op")
 }
 
 func printStats(b *testing.B, c Cache, start time.Time) {
