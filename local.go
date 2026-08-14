@@ -1,12 +1,9 @@
 package cache
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -54,9 +51,6 @@ type localCache struct {
 
 	// readCount is a counter of the number of reads since the last write.
 	readCount int32
-
-	// loadGroup deduplicates concurrent loads for the same key.
-	loadGroup singleflight.Group
 
 	// for closing routines created by this cache.
 	closing int32
@@ -169,11 +163,10 @@ func (c *localCache) InvalidateAll() {
 // if it is not in the cache. The returned value is only cached when loader returns
 // nil error.
 func (c *localCache) Get(k Key) (Value, error) {
-	h := sum(k)
-	en := c.cache.get(k, h)
+	en := c.cache.get(k, sum(k))
 	if en == nil {
 		c.stats.RecordMisses(1)
-		return c.load(k, h)
+		return c.load(k)
 	}
 	// Check if this entry needs to be refreshed
 	now := currentTime()
@@ -239,10 +232,9 @@ func (c *localCache) Refresh(k Key) {
 	if c.loader == nil {
 		return
 	}
-	h := sum(k)
-	en := c.cache.get(k, h)
+	en := c.cache.get(k, sum(k))
 	if en == nil {
-		c.load(k, h)
+		c.load(k)
 	} else {
 		c.refreshAsync(en)
 	}
@@ -255,10 +247,9 @@ func (c *localCache) RefreshIfModifiedAfter(k Key, modifiedTime int64) {
 	if c.loader == nil {
 		return
 	}
-	h := sum(k)
-	en := c.cache.get(k, h)
+	en := c.cache.get(k, sum(k))
 	if en == nil {
-		c.load(k, h)
+		c.load(k)
 	} else {
 		// Only refresh if the data was modified after the entry was last loaded
 		if modifiedTime > en.getWriteTime() {
@@ -351,23 +342,20 @@ func (c *localCache) access(en *entry) {
 
 // load uses current loader to synchronously retrieve value for k and adds new
 // entry to the cache only if loader returns a nil error.
-// h is the pre-computed hash of k from the caller, passed to avoid recomputing it.
-func (c *localCache) load(k Key, h uint64) (Value, error) {
+func (c *localCache) load(k Key) (Value, error) {
 	if c.loader == nil {
 		panic("cache loader function must be set")
 	}
+	// TODO: Poll the value instead when the entry is loading.
 	start := currentTime()
-	// Coalesce concurrent loads for the same key to avoid thundering herd.
-	v, err, _ := c.loadGroup.Do(fmt.Sprintf("%T:%v", k, k), func() (interface{}, error) {
-		return c.loader(k)
-	})
+	v, err := c.loader(k)
 	now := currentTime()
 	loadTime := now.Sub(start)
 	if err != nil {
 		c.stats.RecordLoadError(loadTime)
 		return nil, err
 	}
-	en := newEntry(k, v, h)
+	en := newEntry(k, v, sum(k))
 	c.setEntryWriteTime(en, now)
 	c.setEntryAccessTime(en, now)
 	if c.cap == 0 || c.cache.len() < c.cap {
@@ -491,12 +479,10 @@ func (c *localCache) expireEntries() {
 			if remain == 0 || en.getWriteTime() >= expiry {
 				return false
 			}
-			// When a reloader is set, its setFn calls sendEvent, which would deadlock
-			// if called synchronously from within the processEntries goroutine.
-			if c.reloader != nil {
-				go c.refreshAsync(en)
-				remain--
-			} else if c.refreshAsync(en) {
+			// FIXME: This can cause deadlock if the custom executor runs refresh in current go routine.
+			// The refresh function, when finish, will send to event channels.
+			if c.refreshAsync(en) {
+				// TODO: Maybe move this entry up?
 				remain--
 			}
 			return remain > 0

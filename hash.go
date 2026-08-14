@@ -1,19 +1,8 @@
 package cache
 
-// This file mixes two hash algorithms deliberately:
-//   - Numeric/pointer keys use inline FNV-1a (hashU64/hashU32). The result
-//     is only ever reduced to the low 2 bits for segment selection (see
-//     cache.segment in policy.go), so avalanche quality beyond that is
-//     irrelevant, and hashing raw integers avoids the byte-conversion
-//     XXH3's []byte/string API would require.
-//   - String keys use XXH3-64 (hashString), since it consistently beats
-//     FNV-1a's byte-at-a-time loop across the observed key size range:
-//     16B ~3.0x, 32B ~3.9x, 64B ~4.7x, 128B ~6.3x faster, both allocation-free.
 import (
 	"math"
 	"reflect"
-
-	"github.com/zeebo/xxh3"
 )
 
 // Hash is an interface implemented by cache keys to
@@ -113,10 +102,15 @@ func hashU32(v uint32) uint64 {
 	return h
 }
 
-// hashString calculates hash value using XXH3-64, which outperforms FNV-1a
-// for typical cache key lengths.
+// hashString calculates hash value using FNV-1a algorithm.
 func hashString(data string) uint64 {
-	return xxh3.HashString(data)
+	// Inline code from hash/fnv to reduce memory allocations
+	h := fnvOffset
+	for _, b := range data {
+		h ^= uint64(b)
+		h *= fnvPrime
+	}
+	return h
 }
 
 func hashPointer(k interface{}) (uint64, bool) {
