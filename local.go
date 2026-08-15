@@ -358,7 +358,7 @@ func (c *localCache) load(k Key, h uint64) (Value, error) {
 	}
 	start := currentTime()
 	// Coalesce concurrent loads for the same key to avoid thundering herd.
-	v, err, _ := c.loadGroup.Do(fmt.Sprintf("%T:%v", k, k), func() (interface{}, error) {
+	v, err, _ := c.loadGroup.Do(singleflightKey(k), func() (interface{}, error) {
 		return c.loader(k)
 	})
 	now := currentTime()
@@ -645,4 +645,14 @@ func withInsertionListener(onInsertion Func) Option {
 	return func(c *localCache) {
 		c.onInsertion = onInsertion
 	}
+}
+
+func singleflightKey(k Key) string {
+	// String keys (0 heap allocations)
+	if s, ok := k.(string); ok {
+		return s
+	}
+
+	// Fallback: Any other non-string key type
+	return fmt.Sprintf("%T:%v", k, k)
 }

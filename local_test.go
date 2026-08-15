@@ -576,6 +576,48 @@ func TestCloseMultiple(t *testing.T) {
 	c.Close()
 }
 
+func TestSingleflightKey(t *testing.T) {
+	type customKey struct {
+		ID int
+	}
+
+	tests := []struct {
+		name     string
+		input    Key
+		expected string
+	}{
+		// 1. Hot Path: Strings
+		{name: "string key", input: "cache-key-1", expected: "cache-key-1"},
+		{name: "empty string key", input: "", expected: ""},
+
+		// 2. Secondary Path: Signed Integers
+		{name: "int key", input: int(-42), expected: "int:-42"},
+		{name: "int64 key", input: int64(123456789), expected: "int64:123456789"},
+		{name: "int32 key", input: int32(100), expected: "int32:100"},
+		{name: "int16 key", input: int16(-32000), expected: "int16:-32000"},
+		{name: "int8 key", input: int8(-128), expected: "int8:-128"},
+
+		// 2. Secondary Path: Unsigned Integers
+		{name: "uint key", input: uint(42), expected: "uint:42"},
+		{name: "uint64 key", input: uint64(9876543210), expected: "uint64:9876543210"},
+		{name: "uint32 key", input: uint32(200), expected: "uint32:200"},
+		{name: "uint16 key", input: uint16(65000), expected: "uint16:65000"},
+		{name: "uint8 key", input: uint8(255), expected: "uint8:255"},
+
+		// 3. Fallback: Custom Structs / Complex Types
+		{name: "custom struct key", input: customKey{ID: 10}, expected: "cache.customKey:{10}"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := singleflightKey(tt.input)
+			if got != tt.expected {
+				t.Errorf("singleflightKey(%v) = %q; want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
 func BenchmarkGetSame(b *testing.B) {
 	c := New()
 	defer c.Close()
