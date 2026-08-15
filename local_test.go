@@ -468,6 +468,8 @@ func TestGetIfPresentExpired(t *testing.T) {
 		wg.Done()
 	}
 	c := New(WithExpireAfterWrite(1*time.Second), withInsertionListener(insFunc))
+	defer c.Close()
+
 	mockTime := newMockTime()
 	currentTime = mockTime.now
 
@@ -501,6 +503,8 @@ func TestLoadingAsyncReload(t *testing.T) {
 	currentTime = mockTime.now
 	c := NewLoadingCache(loader, WithExpireAfterWrite(5*time.Millisecond),
 		WithReloader(&syncReloader{loader}))
+	defer c.Close()
+
 	val = "a"
 	v, err := c.Get(1)
 	if err != nil || v != val {
@@ -525,6 +529,8 @@ func TestLoadingRefresh(t *testing.T) {
 		count++
 		return count, nil
 	})
+	defer c.Close()
+
 	for i := 10; i > 0; i-- {
 		v, _ := c.Get(1)
 		if v.(int) != 1 {
@@ -572,6 +578,8 @@ func TestCloseMultiple(t *testing.T) {
 
 func BenchmarkGetSame(b *testing.B) {
 	c := New()
+	defer c.Close()
+
 	c.Put("*", "*")
 	b.ReportAllocs()
 	b.ResetTimer()
