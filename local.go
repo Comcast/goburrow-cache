@@ -248,8 +248,8 @@ func (c *localCache) Refresh(k Key) {
 	}
 }
 
-// RefreshIfModifiedAfter asynchronously reloads value for Key if the provided timestamp
-// indicates the data was modified after the entry was last loaded. If the entry doesn't exist,
+// RefreshIfModifiedAfter asynchronously reloads value for Key if the provided modifiedTime
+// (in Unix nanoseconds) is greater than the entry's last write time. If the entry doesn't exist,
 // it will synchronously load and block until the value is loaded.
 func (c *localCache) RefreshIfModifiedAfter(k Key, modifiedTime int64) {
 	if c.loader == nil {
@@ -540,9 +540,7 @@ func (c *localCache) setEntryAccessTime(en *entry, now time.Time) {
 
 // setEntryWriteTime sets write time if needed.
 func (c *localCache) setEntryWriteTime(en *entry, now time.Time) {
-	if c.expireAfterWrite > 0 || c.refreshAfterWrite > 0 {
-		en.setWriteTime(now.UnixNano())
-	}
+	en.setWriteTime(now.UnixNano())
 }
 
 // New returns a local in-memory Cache.
